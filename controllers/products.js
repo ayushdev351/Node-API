@@ -1,7 +1,7 @@
 const Product = require('../models/product.js');
 
 const getallProducts = async (req, res) => {
-    const {featured, company, name, sort, fields} = req.query;
+    const {featured, company, name, sort, fields, numericFilters} = req.query;
     const queryObject = {};
 
     // properties present in Schema
@@ -15,6 +15,37 @@ const getallProducts = async (req, res) => {
 
     if(name) {
         queryObject.name = {$regex : name, $options : 'i'};
+    }
+
+    //Numeric filters
+
+    if(numericFilters)
+    {
+        const operatorMap = {
+            '>' : '$gt',
+            '<' : '$lt',
+            '>=' : '$gte',
+            '<=' : '$lte',
+            '=' : '$eq',
+        }
+
+        const regEx = /\b(>|<|>=|<=|=)\b/g;
+
+        let filters = numericFilters.replace(
+            regEx,
+            (match) => `-${operatorMap[match]}-`
+        )
+        
+        const options = ['price', 'rating'];
+
+        filters = filters.split(',').forEach((item) => {
+            const [field, operator, value] = item.split('-');
+
+            if(options.includes(field)) {
+                queryObject[field] = {[operator] : Number(value)};
+            }
+        })
+
     }
 
     let result = Product.find(queryObject);
@@ -52,9 +83,9 @@ const getallProducts = async (req, res) => {
 }
 
 const getallProductsStatic = async(req, res) => {
-    const products = await Product.find({})
-    .sort('rating')
-    .select('name rating')
+    const products = await Product.find({price : {$gt : 30}})
+    .sort('price')
+    .select('price')
     .limit(10)
     .skip(5);
 
